@@ -1,0 +1,8 @@
+create table students(
+	id UUID not null primary key,
+	name varchar(50) not null,
+	lastName  varchar(50) not null,
+	firstName  varchar(50) not null,
+	groupName  varchar(50) not null,
+	scoreAvg  float not null
+);
