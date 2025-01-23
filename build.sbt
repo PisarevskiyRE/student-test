@@ -16,6 +16,8 @@ libraryDependencies ++= Seq(
   ws,
   "org.postgresql" % "postgresql" % "42.7.3",
   "org.playframework.anorm" %% "anorm" % "2.7.0",
-  "org.flywaydb" %% "flyway-play" % "9.1.0"
+  "org.flywaydb" %% "flyway-play" % "9.1.0",
+  "com.nulab-inc" %% "scala-oauth2-core" % "1.6.0",
+  "com.nulab-inc" %% "play2-oauth2-provider" % "2.0.0"
 )
 
