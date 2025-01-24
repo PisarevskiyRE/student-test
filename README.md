@@ -12,11 +12,6 @@ curl -L -X POST 'http://localhost:9000/oauth/access_token' \
 -d 'client_secret=bob_client_secret' \
 -d 'grant_type=client_credentials'
 
-{"access_token": "auth1"}
-
-curl --location --request GET 'localhost:9000/students' \
---header 'Authorization: auth1'
-
 {
 "token_type": "Bearer",
 "access_token": "GhxrtdcROvmE4LLFpf5KAlzd4vJMugYsPwSNoaI3",
