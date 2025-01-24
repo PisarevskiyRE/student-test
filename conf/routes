@@ -11,9 +11,10 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 
 
 GET      /students              controllers.StudentController.getStudents
-POST     /students              controllers.StudentController.createStudent
-GET      /students/:id          controllers.StudentController.getStudentById(id: java.util.UUID)
-DELETE   /students/:id          controllers.StudentController.deleteStudentById(id: java.util.UUID)
-PUT      /students/:id          controllers.StudentController.updateStudentById(id: java.util.UUID)
+# POST     /students              controllers.StudentController.createStudent
+# GET      /students/:id          controllers.StudentController.getStudentById(id: java.util.UUID)
+# DELETE   /students/:id          controllers.StudentController.deleteStudentById(id: java.util.UUID)
+# PUT      /students/:id          controllers.StudentController.updateStudentById(id: java.util.UUID)
 
-POST     /login                 controllers.AuthController.login
+POST       /oauth/access_token    oauth2.controllers.OAuthController.accessToken()
+GET        /resources             oauth2.controllers.ProtectedController.resources()

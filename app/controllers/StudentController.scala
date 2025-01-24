@@ -1,82 +1,120 @@
 package controllers
 
-import java.util.UUID
-
+import java.util.{Date, UUID}
 import javax.inject._
 import play.api.libs.json._
 import play.api.mvc._
 import models._
+import oauth2.models.Account
+
+import scalaoauth2.provider.{AccessToken, AuthInfo, AuthorizedActionFunction, OAuth2ProviderActionBuilders}
 import services._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class StudentController @Inject()(val controllerComponents: ControllerComponents,
-                                  studentService: StudentService,
-                                  authService: AuthService)(implicit ec: ExecutionContext)
-  extends BaseController {
+                                  studentService: StudentService)(implicit ec: ExecutionContext)
+  extends BaseController with OAuth2ProviderActionBuilders {
 
   def getStudents: Action[AnyContent] = Action.async { implicit request =>
-    authService.withUser(_ =>
-      studentService.getStudents().map { students =>
-        Ok(Json.toJson(students))
-      }
-    )
+    validateStudentCertificate(request).flatMap {
+      case true =>
+        studentService.getStudents().map { students =>
+          Ok(Json.toJson(students))
+        }
+      case false =>
+        Future.successful(Forbidden(Json.obj("error" -> "нет прав")))
+    }
   }
 
   def getStudentById(id: UUID): Action[AnyContent] = Action.async { implicit request =>
-    authService.withUser(_ =>
-      studentService.getStudentById(id).map {
-        case Some(student) => Ok(Json.toJson(student))
-        case None        => NotFound
-      }
-    )
+    validateStudentCertificate(request).flatMap {
+      case true =>
+        studentService.getStudentById(id).map {
+          case Some(student) => Ok(Json.toJson(student))
+          case None        => NotFound
+        }
+      case false =>
+        Future.successful(Forbidden(Json.obj("error" -> "нет прав")))
+    }
   }
+
 
   def deleteStudentById(id: UUID): Action[AnyContent] = Action.async { implicit request =>
-    authService.withUser(user =>
-      if (user.isAdmin) studentService.deleteStudentById(id).map {
-        case 1 => Ok("Ok")
-        case 0 => BadRequest("Ошибка при удалении студента")
-      } else Future { Unauthorized("Нет доступа") }
-    )
+    validateStudentCertificate(request).flatMap {
+      case true =>
+        studentService.deleteStudentById(id).map {
+          case 1 => Ok("Ok")
+          case 0 => BadRequest("Ошибка при удалении студента")
+        }
+      case false =>
+        Future.successful(Forbidden(Json.obj("error" -> "нет прав")))
+    }
   }
 
-  def createStudent: Action[JsValue] = Action(parse.json).async { implicit request => {
-    request.body
-      .validate[NewStudent]
-      .fold(
-        errors => Future {
-          BadRequest(errors.mkString)
-        },
-        newStudent => {
-          studentService.createStudent(
-            Student(UUID.randomUUID(),
-              newStudent.name,
-              newStudent.lastName,
-              newStudent.firstName,
-              newStudent.groupName,
-              newStudent.scoreAvg
-            )).map {
-            case Left(_) => BadRequest("Ошибка при создании студента")
-            case Right(student) => Ok(Json.toJson(student))
-          }
+  def createStudent(id: UUID): Action[AnyContent] = Action.async { implicit request =>
+    validateStudentCertificate(request).flatMap {
+      case true =>
+        request.body.asJson match {
+          case Some(json) =>
+            json.validate[NewStudent].fold(
+              errors => {
+                val errorMessages = errors.map { case (path, validationErrors) =>
+                  s"${path.toString}: ${validationErrors.map(_.message).mkString(", ")}"
+                }.mkString("; ")
+                Future.successful(BadRequest(Json.obj("error" -> errorMessages)))
+              },
+              newStudent => {
+                studentService.createStudent(
+                  Student(
+                    UUID.randomUUID(),
+                    newStudent.name,
+                    newStudent.lastName,
+                    newStudent.firstName,
+                    newStudent.groupName,
+                    newStudent.scoreAvg
+                  )
+                ).map {
+                  case Left(_) => BadRequest(Json.obj("error" -> "Ошибка при создании студента"))
+                  case Right(student) => Ok(Json.toJson(student))
+                }
+              }
+            )
+          case None =>
+            Future.successful(BadRequest(Json.obj("error" -> "Ожидался JSON в теле запроса")))
         }
-      )
+      case false =>
+        Future.successful(Forbidden(Json.obj("error" -> "нет прав")))
+    }
   }
+
+
+  private def validateStudentCertificate(request: Request[AnyContent]): Future[Boolean] = {
+    val maybeToken = request.headers.get("Authorization").map(_.stripPrefix("Bearer "))
+    maybeToken match {
+      case Some(token) => Future.successful(true)
+      case None => Future.successful(false)
+    }
   }
 
   def updateStudentById(id: UUID): Action[JsValue] = Action(parse.json).async { implicit request =>
     request.body
       .validate[Student]
       .fold(
-        errors => Future { BadRequest(errors.mkString) },
+        errors => {
+          val errorMessages = errors.map { case (path, validationErrors) =>
+            s"${path.toString}: ${validationErrors.map(_.message).mkString(", ")}"
+          }.mkString("; ")
+          Future.successful(BadRequest(Json.obj("error" -> errorMessages)))
+        },
         student => {
           studentService.updateStudentById(id, student).map {
-            case 1 => Ok("Ok")
-            case 0 => BadRequest("Ошибка при редактировании студента")
+            case 1 => Ok(Json.obj("status" -> "success"))
+            case 0 => BadRequest(Json.obj("error" -> "Ошибка при редактировании студента"))
           }
         }
       )
   }
+
 }
