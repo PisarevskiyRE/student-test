@@ -116,5 +116,4 @@ class StudentController @Inject()(val controllerComponents: ControllerComponents
         }
       )
   }
-
 }
